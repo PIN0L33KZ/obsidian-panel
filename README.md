@@ -42,7 +42,7 @@
 
 # Installation Guide 💡
 ## 1. Update your server ⏫
-Update your Packagelists with the following command:
+Update your Repo-lists with the following command:
 ```bash
 apt-get update
 ```
@@ -52,7 +52,7 @@ apt-get upgrade -y
 ```
 
 ## 2. Install Apache2 ⬇️
-This Documentation proceeds with Apache2 but you can choos a different webserver.
+This Documentation proceeds with Apache2 but you can choose a different webserver.
 Continue your Apache2 installation with the following commands:
 ```bash
 sudo apt install apache2 -y

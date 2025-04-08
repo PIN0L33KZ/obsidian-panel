@@ -8,20 +8,20 @@
 
 
 ### 📚 Table of Contents
-- [📦 Prerequisites](#-prerequisites-)
-- [🚀 Installation Guide](#-installation-guide)
-  - [1. Update your server](#1-update-your-server)
-  - [2. Install Apache2](#2-install-apache2)
-  - [3. Enable required Apache modules](#3-enable-required-apache-modules)
-  - [4. Install PHP and extensions](#4-install-php-and-extensions)
-  - [5. Configure firewall (UFW)](#5-configure-ufw-firewall)
-  - [6. Create virtual host](#6-create-virtual-host)
-  - [7. Download and install Obsidian Panel](#7-download--install-mchostpanel)
-  - [8. Configuration](#8-configuration)
-  - [9. Web based setup](#9-web-based-setup)
-  - [10. Clean up](#10-clean-up)
-- [✅ All set!](#-youre-done)
-- [🧩 Support](#-support)
+-[ 📦 Prerequisites](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#prerequisites- " 📦 Prerequisites")
+- [🚀 Installation Guide](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#installation-guide- "🚀 Installation Guide")
+  - [1. Update your server](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#1-update-your-server- "1. Update your server")
+  - [2. Install Apache2](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#2-install-apache2-%EF%B8%8F "2. Install Apache2")
+  - [3. Enable required Apache modules](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#3-enable-required-apache-modules- "3. Enable required Apache modules")
+  - [4. Install PHP and extensions](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#4-install-php-and-extensions- "4. Install PHP and extensions")
+  - [5. Configure firewall (UFW)](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#5-configure-firewall-ufw- "5. Configure firewall (UFW)")
+  - [6. Create virtual host](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#6-create-virtual-host- "6. Create virtual host")
+  [- 7. Download and install Obsidian Panel](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#7-download-and-install-obsidian-panel-%EF%B8%8F "- 7. Download and install Obsidian Panel")
+  - [8. Configuration](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#8-configuration-%EF%B8%8F "8. Configuration")
+  -[ 9. Web based setup](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#9-web-based-setup- " 9. Web based setup")
+  - [10. Clean up](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#10-clean-up- "10. Clean up")
+- [✅ All set!](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#all-set- "✅ All set!")
+- [🧩 Support](https://github.com/PIN0L33KZ/obsidian-panel/tree/main#support- "🧩 Support")
 
 # Prerequisites 📦
 - Apache2 / Nginx / Lighttpd
@@ -197,3 +197,6 @@ rm /var/www/<yourDomain>/public_html/install.php
 
 # All set! 🥳
 You can now access and use your Obsidian Panel via your browser `http://<your_domain_or_IP>`
+
+# Support 💁🏼‍♂️
+You can contact me via E-Mail `contact@pinoleekz.de` or via my web forumlar at `https://www.pinoleekz.de/contact`

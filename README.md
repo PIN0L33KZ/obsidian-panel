@@ -193,7 +193,7 @@ vim data/config.php
 ```
 edit the followig line: `define('KT_LOCAL_IP', 'your_server_IP');`
 > [!IMPORTANT]
-> If the webpanel runs on the same server as the minecraft server it self use `127.0.0.1`
+> If the webpanel runs on the same server as the minecraft server itself use `127.0.0.1`
 
 ## 9. Web based setup 💿
 Open your browser and head over to `http://<your_domain_or_IP>/install.php` and follow the instructions to create your admin account.

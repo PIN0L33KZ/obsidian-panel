@@ -28,7 +28,7 @@
 - [📬 Support](#support)
 
 ## 🔍 Project Overview
-**Obsidian Panel** is a sleek, efficient, and self-hosted solution for managing Minecraft servers. It provides a modern web interface, designed for simplicity and functionality, empowering administrators to easily manage server files, monitor performance, and configure game settings — all through a secure and user-friendly interface.
+**Obsidian Panel** is a modernized and enhanced continuation of the original **![MCHostPanel](https://github.com/Alanaktion/MCHostPanel)** project by Alan Hardman. Building on the solid foundation established in 2016, Obsidian Panel offers a sleek, efficient, and self-hosted platform for managing Minecraft servers. With a redesigned web interface focused on usability and performance, it enables administrators to effortlessly manage server files, monitor server performance, and configure game settings — all through a secure, intuitive, and streamlined experience.
 
 ## 🖼️ Screenshots
 > Login screen  

@@ -240,5 +240,5 @@ http://<your_domain_or_IP>
 ```
 
 ## 📬 Support
-For support or inquiries, please contact me via email at `contact@pinoleekz.de`  
-or through the web form at: `https://www.pinoleekz.de/contact`
+For support or inquiries, please contact me via email at contact@pinoleekz.de <br>
+or through the web form at: ![https://www.pinoleekz.de/contact](https://www.pinoleekz.de/contact)

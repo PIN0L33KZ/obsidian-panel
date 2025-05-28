@@ -18,12 +18,13 @@
   - [2. Install Apache2](#install-apache2)
   - [3. Enable required Apache modules](#enable-required-apache-modules)
   - [4. Install PHP and required extensions](#install-php-and-required-extensions)
-  - [5. Configure firewall (UFW)](#configure-firewall-ufw)
-  - [6. Create virtual host](#create-virtual-host)
-  - [7. Download and install Obsidian Panel](#download-and-install-obsidian-panel)
-  - [8. Configuration](#configuration)
-  - [9. Web-based setup](#web-based-setup)
-  - [10. Clean up](#clean-up)
+  - [5. Install Screen application](#install-screen-application)
+  - [6. Configure firewall (UFW)](#configure-firewall-ufw)
+  - [7. Create virtual host](#create-virtual-host)
+  - [8. Download and install Obsidian Panel](#download-and-install-obsidian-panel)
+  - [9. Configuration](#configuration)
+  - [10. Web-based setup](#web-based-setup)
+  - [11. Clean up](#clean-up)
 - [✅ All set](#all-set)
 - [📬 Support](#support)
 
@@ -96,7 +97,13 @@ Install PHP 8.2 and its required extensions:
 apt-get install php8.2 php8.2-gd -y
 ```
 
-### 5. Configure firewall (UFW)
+### 5. Install Screen application
+Install Screen:
+```bash
+apt-get install screen -y
+```
+
+### 6. Configure firewall (UFW)
 Install **Uncomplicated Firewall (UFW)**:
 ```bash
 apt-get install ufw -y
@@ -125,18 +132,12 @@ Enable and reload UFW:
 ufw enable && ufw reload
 ```
 
-### 6. Create virtual host
+### 7. Create virtual host
 Create directory structure:
 ```bash
 mkdir -p /var/www/<yourDomain>/public_html/
 mkdir /var/www/<yourDomain>/logs/
 mkdir /var/www/<yourDomain>/public_servers/
-```
-
-Set permissions:
-```bash
-chown www-data /var/www/<yourDomain> -R
-chmod 755 /var/www/<yourDomain> -R
 ```
 
 Create virtual host configuration:
@@ -166,7 +167,7 @@ Insert:
     CustomLog /var/www/<yourDomain>/logs/access.log combined
 
     <Directory /var/www/<yourDomain>/public_html/>
-        Options +Indexes +FollowSymLinks
+        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
         DirectoryIndex index.php
@@ -185,7 +186,7 @@ a2ensite obsidian-panel.conf
 systemctl reload apache2
 ```
 
-### 7. Download and install Obsidian Panel
+### 8. Download and install Obsidian Panel
 Download the latest version from:
 ```bash
 https://github.com/PIN0L33KZ/obsidian-panel/releases
@@ -196,13 +197,7 @@ Extract the files into your webroot:
 unzip obsidian-panel.zip -d /var/www/<yourDomain>/public_html/
 ```
 
-Adjust permissions:
-```bash
-chown www-data /var/www/<yourDomain> -R
-chmod 755 /var/www/<yourDomain> -R
-```
-
-### 8. Configuration
+### 9. Configuration
 Copy the sample config:
 ```bash
 cp data/config-sample.php data/config.php
@@ -214,10 +209,16 @@ vim data/config.php
 define('KT_LOCAL_IP', '127.0.0.1');
 ```
 
+Set permissions:
+```bash
+chown www-data /var/www/<yourDomain> -R
+chmod 755 /var/www/<yourDomain> -R
+```
+
 > [!IMPORTANT]
 > Use `127.0.0.1` if the panel and server are on the same machine.
 
-### 9. Web-based setup
+### 10. Web-based setup
 Visit:
 ```bash
 http://<your_domain_or_IP>/install.php
@@ -227,7 +228,7 @@ Follow the setup wizard to create your administrator account.
 > [!TIP]
 > If SSL is configured, you will be redirected automatically to HTTPS.
 
-### 10. Clean up
+### 11. Clean up
 Remove the installation file for security:
 ```bash
 rm /var/www/<yourDomain>/public_html/install.php

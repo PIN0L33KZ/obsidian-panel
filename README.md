@@ -9,146 +9,150 @@
   <img src="https://img.shields.io/github/v/release/PIN0L33KZ/obsidian-panel" alt="Release Version"/>
 </p>
 
-## 📚 Table of Contents
-- [🔍 Project Overview](#project-overview)
-- [🖼️ Screenshots](#screenshots)
-- [📦 Prerequisites](#prerequisites)
-- [🚀 Installation Guide](#installation-guide)
-  - [1. Update your server](#update-your-server)
-  - [2. Install Apache2](#install-apache2)
-  - [3. Enable required Apache modules](#enable-required-apache-modules)
-  - [4. Install PHP and required extensions](#install-php-and-required-extensions)
-  - [5. Install Screen application](#install-screen-application)
-  - [6. Configure firewall (UFW)](#configure-firewall-ufw)
-  - [7. Create virtual host](#create-virtual-host)
-  - [8. Download and install Obsidian Panel](#download-and-install-obsidian-panel)
-  - [9. Configuration](#configuration)
-  - [10. Web-based setup](#web-based-setup)
-  - [11. Clean up](#clean-up)
-- [✅ All set](#all-set)
-- [📬 Support](#support)
+---
 
-## 🔍 Project Overview
-**Obsidian Panel** is a modernized and enhanced continuation of the original **![MCHostPanel](https://github.com/Alanaktion/MCHostPanel)** project by Alan Hardman. Building on the solid foundation established in 2016, Obsidian Panel offers a sleek, efficient, and self-hosted platform for managing Minecraft servers. With a redesigned web interface focused on usability and performance, it enables administrators to effortlessly manage server files, monitor server performance, and configure game settings — all through a secure, intuitive, and streamlined experience.
+## ☝🏼 - Program Description
 
-## 🖼️ Screenshots
-> Login screen  
-![Login](https://github.com/user-attachments/assets/8b7e052d-bfde-4d6b-9d21-bb14e683600c)  
+**Obsidian Panel** is a modernised continuation of the original [**MCHostPanel**](https://github.com/Alanaktion/MCHostPanel) project by Alan Hardman, first introduced in 2016. It provides a sleek, efficient, and self-hosted platform for managing Minecraft servers. Featuring a redesigned web interface focused on usability and performance, it allows administrators to manage files, monitor server performance, and configure game settings with ease, all within a secure and streamlined environment.
 
-> Dashboard  
-![Dashboard](https://github.com/user-attachments/assets/2fb62f95-7960-4e0b-bdd3-36773aa939ea)  
+---
 
-> File manager  
-![File Manager](https://github.com/user-attachments/assets/2728e271-cafd-492f-9fa4-ac49203d570c)  
+## 📔 - Version Information
 
-> Admin center  
-![Admin Center](https://github.com/user-attachments/assets/2792d486-32d4-42aa-af63-ce4d29d43615)  
+Current version: **0.1.0.2** Release date: **08/04/2025**
 
-## 📦 Prerequisites
-Ensure the following dependencies are installed before proceeding:
+Latest Updates:
 
-- A web server: Apache2, Nginx, or Lighttpd
-- PHP version 8.2 or higher
-- GNU Screen (for managing terminal sessions)
-- Java Runtime Environment (OpenJDK / Adoptium), compatible with your Minecraft server version
+- First Beta release to the public
 
-## 🚀 Installation Guide
+---
 
-### 1. Update your server
-Refresh your repository list:
+## ⚠️ - Software Requirements
+
+- Web Server (Apache2, Nginx, XAMMP or Lighttpd)
+- PHP 8.2 (or higher)
+- GNU Screen (Terminal Multiplexer)
+- Java Runtime Environment (OpenJDK or Adoptium)
+
+---
+
+## 🚀 - Installation Guide
+
+> [!NOTE]  
+> This Installation Guide is based on Debian 12 (Bookworm) and the APT-Package Manager.
+
+### Update your Linux Server
+
+Refresh your repository list and upgrade installed packages:
+
 ```bash
-apt-get update
-```
-Upgrade installed packages:
-```bash
-apt-get upgrade -y
+sudo apt update; \
+sudo apt upgrade -y
 ```
 
-### 2. Install Apache2
-Although this guide uses **Apache2**, feel free to choose another supported web server.
+### Install Web Server
 
-Install and enable Apache2:
+> [!NOTE]  
+> This Guide uses Apache2 as Web Server but feel free to choose another option.
+
+Install and enable the Apache2 Web Server:
+
 ```bash
-sudo apt install apache2 -y
-sudo systemctl enable apache2
+sudo apt install apache2 -y; \
+sudo systemctl enable apache2; \
 sudo systemctl start apache2
 ```
 
-### 3. Enable required Apache modules
+### Enable required Apache2 modules
+
+> [!TIP]
+> The SSL Module is optional and only required if you want your Obsidian Panel Instance to be accessed via HTTPS.
+
 Activate necessary modules:
+
 ```bash
-a2enmod rewrite headers
+a2enmod rewrite headers ssl
 ```
 
-> [!IMPORTANT]
-> For SSL (HTTPS) support, enable the SSL module as well:
-```bash
-a2enmod ssl
-```
+Restart the Apache2 Web Server to enable all Modules:
 
-Restart Apache:
 ```bash
 systemctl restart apache2
 ```
 
-### 4. Install PHP and required extensions
+### Install PHP and required extensions
+
 Install PHP 8.2 and its required extensions:
+
 ```bash
-apt-get install php8.2 php8.2-gd -y
+sudo apt install php8.2 php8.2-gd -y
 ```
 
-### 5. Install Screen application
-Install Screen:
+### Install and configure Server Firewall
+
+> [!NOTE]  
+> This Guide uses UFW as Firewall, feel free to choose a different Firewall Service.
+
+Install UFW (Uncomplicated Firewall):
+
 ```bash
-apt-get install screen -y
+sudo apt install ufw -y
 ```
 
-### 6. Configure firewall (UFW)
-Install **Uncomplicated Firewall (UFW)**:
+Allow the communication to the following ports:
+
+> [!WARNING]  
+> Please replace `<NwA>` with your local network address e.g. `192.168.178.0` and replace `<SM>` with your subnet prefix e.g. `/24` for `255.255.255.0`
+
 ```bash
-apt-get install ufw -y
+sudo ufw allow from <NwA>/<SM> to any port 22 comment 'SSH'; \
+sudo ufw allow in 80/tcp comment 'Webpanel HTTP'; \
+sudo ufw allow in 443/tcp comment 'Webpanel HTTPS'
 ```
 
-Allow SSH (port 22):
+Enable and reload your Firewall:
+
 ```bash
-ufw allow in 22/tcp comment 'SSH'
+sudo ufw enable; \
+sudo ufw reload
 ```
 
-Allow HTTP/HTTPS traffic for the panel:
-```bash
-ufw allow in 80/tcp comment 'Obsidian Panel (HTTP)'
-ufw allow in 443/tcp comment 'Obsidian Panel (HTTPS)'
-```
+### Setup Apache2 Web Server
 
-Example rule list:
-```bash
-[ 1] 22/tcp     ALLOW IN    Anywhere    # SSH
-[ 2] 80/tcp     ALLOW IN    Anywhere    # Webpanel (HTTP)
-[ 3] 443/tcp    ALLOW IN    Anywhere    # Webpanel (HTTPS)
-```
+> [!WARNING]  
+> Please replace the following placeholder:
+>
+> `<domain>` = your hostname or domain name
+>
+> `<rootMail>` = E-Mail address of your root account
+>
+> `<sslCert>` = SSL Certificate File (\*.crt or \*.pem)
+>
+> `<sslKey>` = SSL Key File (\*.key or \*.pem)
 
-Enable and reload UFW:
-```bash
-ufw enable && ufw reload
-```
 
-### 7. Create virtual host
 Create directory structure:
+
 ```bash
-mkdir -p /var/www/<yourDomain>/public_html/
-mkdir /var/www/<yourDomain>/logs/
-mkdir /var/www/<yourDomain>/public_servers/
+mkdir -p /var/www/<domain>/public_html; \
+mkdir /var/www/<domain>/logs; \
+mkdir /var/www/<domain>/public_server
 ```
 
 Create virtual host configuration:
+
 ```bash
 vim /etc/apache2/sites-available/obsidian-panel.conf
 ```
 
-Insert:
+Insert the following configuration:
+
+> [!TIP]
+> This configuration template rewrites http requests on port 80 to https requests on port 443.
+
 ```bash
 <VirtualHost *:80>
-    ServerName <yourDomain>
+    ServerName <domain>
     RewriteEngine On
     RewriteCond %{HTTPS} off
     RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R=301,L]
@@ -156,18 +160,18 @@ Insert:
 
 <VirtualHost *:443>
     ServerAdmin <rootMail>
-    ServerName <yourDomain>
-    DocumentRoot /var/www/<yourDomain>/public_html/
+    ServerName <domain>
+    DocumentRoot /var/www/<domain>/public_html/
 
     SSLEngine on
-    SSLCertificateFile <yourSslCertificate (.crt or .pem)>
-    SSLCertificateKeyFile <yourSslKey (.key or .pem)>
+    SSLCertificateFile <sslCert>
+    SSLCertificateKeyFile <sslKey>
 
-    ErrorLog /var/www/<yourDomain>/logs/error.log
-    CustomLog /var/www/<yourDomain>/logs/access.log combined
+    ErrorLog /var/www/<domain>/logs/error.log
+    CustomLog /var/www/<domain>/logs/access.log combined
 
-    <Directory /var/www/<yourDomain>/public_html/>
-        Options -Indexes +FollowSymLinks
+    <Directory /var/www/<domain>/public_html/>
+        Options +Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
         DirectoryIndex index.php
@@ -180,66 +184,67 @@ Insert:
 </VirtualHost>
 ```
 
-Enable the site and reload Apache:
+Enable your configuration and reload the Apache2 Web Server:
+
 ```bash
-a2ensite obsidian-panel.conf
+a2ensite obsidian-panel.conf; \
 systemctl reload apache2
 ```
 
-### 8. Download and install Obsidian Panel
-Download the latest version from:
+### Download and install Obsidian Panel
+
+> [!WARNING]  
+> Please replace `<domain>` with your hostname or domain name e.g. `panel.pinoleekz.de`
+
+Download the latest Obsidian Panel version from my GitHub, extract all files and delete unnecessary files:
+
 ```bash
-https://github.com/PIN0L33KZ/obsidian-panel/releases
+WEBROOT="/var/www/<domain>/public_html"; \
+wget -O "$WEBROOT/obsidian-panel.zip" "https://github.com/PIN0L33KZ/obsidian-panel/releases/download/v.1.0.2/obsidian-panel_initial-release-1.0.2.zip" && \
+unzip "$WEBROOT/obsidian-panel.zip" -d "$WEBROOT" && \
+rm "$WEBROOT/obsidian-panel.zip" && \
+mv "$WEBROOT/obsidian-panel-main/"* "$WEBROOT" && \
+rm -r "$WEBROOT/obsidian-panel-main"; \
+unset WEBROOT
 ```
 
-Extract the files into your webroot:
+Set directory permissions:
+
 ```bash
-unzip obsidian-panel.zip -d /var/www/<yourDomain>/public_html/
+chown www-data /var/www/<domain> -R; \
+chmod 755 /var/www/<domain> -R
 ```
 
-### 9. Configuration
-Copy the sample config:
+### Configure your Obsidian Panel
+
+Copy the sample config file:
+
 ```bash
 cp data/config-sample.php data/config.php
 ```
 
-Edit the following line to reflect your server IP:
+Edit the following line in `data/config.php` to reflect your Server’s IP-Address:
+
+
+> [!WARNING]  
+> Use `127.0.0.1` if the Panel and the Minecraft Server are running on the same Machine
+
 ```bash
-vim data/config.php
 define('KT_LOCAL_IP', '127.0.0.1');
 ```
 
-Set permissions:
+Open your Obsidian Panel instance via your Browser:
+
 ```bash
-chown www-data /var/www/<yourDomain> -R
-chmod 755 /var/www/<yourDomain> -R
+https://<domain>/install.php
 ```
 
-> [!IMPORTANT]
-> Use `127.0.0.1` if the panel and server are on the same machine.
+Follow the setup wizard in your Browser to create your Administrator Account.
 
-### 10. Web-based setup
-Visit:
+### Clean up
+
+Remove the installation wizard to enhance security:
+
 ```bash
-http://<your_domain_or_IP>/install.php
+rm /var/www/<domain>/public_html_install.php
 ```
-Follow the setup wizard to create your administrator account.
-
-> [!TIP]
-> If SSL is configured, you will be redirected automatically to HTTPS.
-
-### 11. Clean up
-Remove the installation file for security:
-```bash
-rm /var/www/<yourDomain>/public_html/install.php
-```
-
-## ✅ All set!
-Your Obsidian Panel is now fully installed and accessible at:
-```bash
-http://<your_domain_or_IP>
-```
-
-## 📬 Support
-For support or inquiries, please contact me via email at contact@pinoleekz.de <br>
-or through the web form at: ![https://www.pinoleekz.de/contact](https://www.pinoleekz.de/contact)

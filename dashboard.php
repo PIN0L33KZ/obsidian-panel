@@ -105,17 +105,14 @@ if (!empty($_SESSION['user'])) {
 			const restartBtn = document.getElementById('btn-srv-restart');
 			const cmdInput = document.getElementById('cmd');
 			const logArea = document.getElementById('log');
-			const statusLabel = document.getElementById('lbl-status');
-			const statusIcon = document.getElementById('status-icon');
+			let actionInProgress = false;
 			let serverIsRunning = false;
 			let statusTimer = null;
 			let logTimer = null;
 			let lastLogEnd = 0;
-			let actionState = null;
 
 			function setControlStates() {
-				const busy = actionState !== null;
-				if (busy) {
+				if (actionInProgress) {
 					startBtn.disabled = true;
 					stopBtn.disabled = true;
 					restartBtn.disabled = true;
@@ -129,65 +126,9 @@ if (!empty($_SESSION['user'])) {
 				cmdInput.disabled = !serverIsRunning;
 			}
 
-			function updateStatusBadge() {
-				if (actionState && actionState.type === 'start') {
-					statusLabel.innerText = 'Starting…';
-					statusLabel.className = 'badge bg-warning text-dark';
-					statusIcon.className = 'bi bi-arrow-repeat text-warning me-1';
-					return;
-				}
-				if (actionState && actionState.type === 'stop') {
-					statusLabel.innerText = 'Stopping…';
-					statusLabel.className = 'badge bg-warning text-dark';
-					statusIcon.className = 'bi bi-arrow-repeat text-warning me-1';
-					return;
-				}
-				if (actionState && actionState.type === 'restart') {
-					statusLabel.innerText = 'Restarting…';
-					statusLabel.className = 'badge bg-warning text-dark';
-					statusIcon.className = 'bi bi-arrow-repeat text-warning me-1';
-					return;
-				}
-
-				if (serverIsRunning) {
-					statusLabel.innerText = 'Running';
-					statusLabel.className = 'badge bg-success';
-					statusIcon.className = 'bi bi-play-fill text-success me-1';
-				} else {
-					statusLabel.innerText = 'Stopped';
-					statusLabel.className = 'badge bg-danger';
-					statusIcon.className = 'bi bi-stop-fill text-danger me-1';
-				}
-			}
-
 			function scheduleStatusPoll(delayMs = 5000) {
 				window.clearTimeout(statusTimer);
 				statusTimer = window.setTimeout(updateStatus, delayMs);
-			}
-
-			function resolveActionIfDone() {
-				if (!actionState) {
-					return;
-				}
-
-				if (actionState.type === 'start' && serverIsRunning) {
-					actionState = null;
-					return;
-				}
-
-				if (actionState.type === 'stop' && !serverIsRunning) {
-					actionState = null;
-					return;
-				}
-
-				if (actionState.type === 'restart') {
-					if (!serverIsRunning) {
-						actionState.seenStopped = true;
-					}
-					if (actionState.seenStopped && serverIsRunning) {
-						actionState = null;
-					}
-				}
 			}
 
 			function updateStatus() {
@@ -198,16 +139,31 @@ if (!empty($_SESSION['user'])) {
 				})
 				.then(res => res.json())
 				.then(data => {
+					const lbl = document.getElementById('lbl-status');
+					const icon = document.getElementById('status-icon');
 					serverIsRunning = !!data;
-					resolveActionIfDone();
-					updateStatusBadge();
+
+					if (serverIsRunning) {
+						lbl.innerText = actionInProgress ? 'Starting…' : 'Running';
+						lbl.className = 'badge bg-success';
+						icon.className = 'bi bi-play-fill text-success me-1';
+						if (actionInProgress) {
+							actionInProgress = false;
+						}
+					} else {
+						lbl.innerText = actionInProgress ? 'Stopping…' : 'Stopped';
+						lbl.className = 'badge bg-danger';
+						icon.className = 'bi bi-stop-fill text-danger me-1';
+					}
 					setControlStates();
-					scheduleStatusPoll(actionState ? 1000 : 5000);
+					scheduleStatusPoll(actionInProgress ? 1000 : 5000);
 				})
 				.catch(() => {
-					statusLabel.innerText = 'Unknown';
-					statusLabel.className = 'badge bg-secondary';
-					statusIcon.className = 'bi bi-question-circle text-secondary me-1';
+					const lbl = document.getElementById('lbl-status');
+					const icon = document.getElementById('status-icon');
+					lbl.innerText = 'Unknown';
+					lbl.className = 'badge bg-secondary';
+					icon.className = 'bi bi-question-circle text-secondary me-1';
 					scheduleStatusPoll(3000);
 				});
 			}
@@ -304,33 +260,50 @@ if (!empty($_SESSION['user'])) {
 				});
 			}
 
-			function runServerAction(reqType, actionType) {
-				if (actionState) {
-					return;
-				}
-
-				actionState = {
-					type: actionType,
-					seenStopped: false
-				};
-				updateStatusBadge();
+			function runServerAction(reqType, expectedRunningState) {
+				actionInProgress = true;
 				setControlStates();
-				scheduleStatusPoll(500);
-
+				updateStatus();
 				fetch('ajax.php', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 					body: 'req=' + encodeURIComponent(reqType)
 				})
 				.catch(() => {
-					actionState = null;
-					updateStatus();
+					actionInProgress = false;
+					setControlStates();
+				})
+				.finally(() => {
+					const waitForTargetState = () => {
+						fetch('ajax.php', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+							body: 'req=server_running'
+						})
+						.then(res => res.json())
+						.then(isRunning => {
+							serverIsRunning = !!isRunning;
+							if (serverIsRunning === expectedRunningState) {
+								actionInProgress = false;
+							}
+							setControlStates();
+							updateStatus();
+							if (actionInProgress) {
+								window.setTimeout(waitForTargetState, 1000);
+							}
+						})
+						.catch(() => {
+							window.setTimeout(waitForTargetState, 1500);
+						});
+					};
+
+					window.setTimeout(waitForTargetState, 500);
 				});
 			}
 
 			document.getElementById('frm-cmd').addEventListener('submit', function (e) {
 				e.preventDefault();
-				if (actionState) {
+				if (actionInProgress) {
 					return;
 				}
 				if (cmdInput.value.trim()) {
@@ -340,15 +313,15 @@ if (!empty($_SESSION['user'])) {
 			});
 
 			startBtn.addEventListener('click', function () {
-				runServerAction('server_start', 'start');
+				runServerAction('server_start', true);
 			});
 
 			stopBtn.addEventListener('click', function () {
-				runServerAction('server_stop', 'stop');
+				runServerAction('server_stop', false);
 			});
 
 			restartBtn.addEventListener('click', function () {
-				runServerAction('server_restart', 'restart');
+				runServerAction('server_restart', true);
 			});
 
 			document.getElementById('server-jar').addEventListener('change', function () {

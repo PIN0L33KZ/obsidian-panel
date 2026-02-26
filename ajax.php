@@ -11,7 +11,6 @@ switch ($_POST['req']) {
 	case 'dir':
 		$dirs = [];
 		$files = [];
-		$sizes = [];
 
 		// Sicheren Pfad berechnen
 		$dir = sanitize_path($_POST['dir'] ?? '/');
@@ -36,8 +35,10 @@ switch ($_POST['req']) {
 				if (is_dir($full)) {
 					$dirs[] = $f;
 				} elseif (is_file($full)) {
-					$files[] = $f;
-					$sizes[] = filesize($full);
+					$files[] = [
+						'name' => $f,
+						'size' => filesize($full),
+					];
 				}
 			}
 			closedir($handle);
@@ -52,12 +53,17 @@ switch ($_POST['req']) {
 		}
 
 		sort($dirs);
-		sort($files);
+		usort($files, static function ($a, $b) {
+			return strcmp($a['name'], $b['name']);
+		});
+
+		$fileNames = array_column($files, 'name');
+		$fileSizes = array_column($files, 'size');
 
 		echo json_encode([
 			'dirs' => $dirs,
-			'files' => $files,
-			'sizes' => $sizes
+			'files' => $fileNames,
+			'sizes' => $fileSizes
 		]);
 		break;
 

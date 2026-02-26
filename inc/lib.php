@@ -394,6 +394,7 @@ function server_start($name) {
 		return false;
 
 	// Check that server has a .jar, selecting the first .jar in the directory if one has not been set
+	$jar = '';
 	if(empty($user['jar'])) {
 		$files = scandir($user['home']);
 		foreach($files as $file) {
@@ -406,50 +407,52 @@ function server_start($name) {
 		$jar = $user['jar'];
 	}
 
-	if(is_file($user['home'].'/'.$jar)) {
+	if($jar === '' || !is_file($user['home'].'/'.$jar)) {
+		return false;
+	}
 
-		// Verify server.properties (Prevent user from modifying port)
-		if(is_file($user['home'].'/server.properties')) {
-			$prop = file($user['home'].'/server.properties',FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
+	// Verify server.properties (Prevent user from modifying port)
+	if(is_file($user['home'].'/server.properties')) {
+		$prop = file($user['home'].'/server.properties',FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES);
 
-			// Remove any port setting
-			foreach($prop as $i=>$p) {
-				if(strpos($p,'server-port')!==false) {
-					unset($prop[$i]);
-					continue;
-				}
+		// Remove any port setting
+		foreach($prop as $i=>$p) {
+			if(strpos($p,'server-port')!==false) {
+				unset($prop[$i]);
+				continue;
 			}
-
-			// Add user's port
-			$prop[] = 'server-port='.intval($user['port']);
-
-			// Save properties file
-			file_put_contents($user['home'].'/server.properties',implode("\n",$prop));
-
-		} else {
-			// File doesn't exist, use template from ./serverbase
-			file_put_contents(
-				$user['home'].'/server.properties',
-				str_replace(
-					'%PORT%',
-					intval($user['port']),
-					file_get_contents('serverbase/server.properties')
-				)
-			);
 		}
 
-		// Launch server process in a detached GNU Screen
-		shell_exec(
-			'cd '.escapeshellarg($user['home']).'; '. // Change to server directory
-			sprintf(
-				str_replace('craftbukkit.jar', $jar, KT_SCREEN_CMD_START), // Base command
-				escapeshellarg(KT_SCREEN_NAME_PREFIX.$user['user']), // Screen Name
-				intval($user['ram']/2), // Startup RAM
-				$user['ram']  // Maximum RAM
+		// Add user's port
+		$prop[] = 'server-port='.intval($user['port']);
+
+		// Save properties file
+		file_put_contents($user['home'].'/server.properties',implode("\n",$prop));
+
+	} else {
+		// File doesn't exist, use template from ./serverbase
+		file_put_contents(
+			$user['home'].'/server.properties',
+			str_replace(
+				'%PORT%',
+				intval($user['port']),
+				file_get_contents('serverbase/server.properties')
 			)
 		);
-
 	}
+
+	// Launch server process in a detached GNU Screen
+	shell_exec(
+		'cd '.escapeshellarg($user['home']).'; '. // Change to server directory
+		sprintf(
+			KT_SCREEN_CMD_START, // Base command
+			escapeshellarg(KT_SCREEN_NAME_PREFIX.$user['user']), // Screen Name
+			intval($user['ram']/2), // Startup RAM
+			intval($user['ram']), // Maximum RAM
+			escapeshellarg($jar) // Server JAR
+		)
+	);
+
 }
 
 /**

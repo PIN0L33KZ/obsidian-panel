@@ -2,10 +2,14 @@
 require_once 'inc/lib.php';
 
 session_start();
-if (empty($_SESSION['user']) || !user_info($_SESSION['user'])) {
+
+$user = !empty($_SESSION['user']) ? user_info($_SESSION['user']) : false;
+if (!$user) {
 	header('Location: .');
 	exit('Not Authorized');
 }
+
+$_SESSION['is_admin'] = $user['role'] === 'admin';
 ?>
 <!doctype html>
 <html lang="en">

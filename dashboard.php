@@ -236,10 +236,12 @@ if (!empty($_SESSION['user'])) {
 			});
 
 			document.getElementById('btn-srv-restart').addEventListener('click', function () {
-				document.getElementById('btn-srv-stop').click();
-				setTimeout(() => {
-					document.getElementById('btn-srv-start').click();
-				}, 2000);
+				this.disabled = true;
+				fetch('ajax.php', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: 'req=server_restart'
+				}).then(() => updateStatus(true));
 			});
 
 			document.getElementById('server-jar').addEventListener('change', function () {

@@ -114,6 +114,10 @@ switch ($_POST['req']) {
 		server_stop($user['user']);
 		break;
 
+	case 'server_restart':
+		echo json_encode(server_restart($user['user']));
+		break;
+
 	case 'server_kill':
 		server_kill($user['user']);
 		break;

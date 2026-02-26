@@ -495,6 +495,26 @@ function server_stop($name) {
 	);
 }
 
+
+/**
+ * Restart a server with a given username
+ * @param string $name
+ * @return bool
+ */
+function server_restart($name) {
+	if(server_running($name)) {
+		server_stop($name);
+
+		$tries = 0;
+		while(server_running($name) && $tries < 20) {
+			usleep(500000);
+			$tries++;
+		}
+	}
+
+	return (bool)server_start($name);
+}
+
 /**
  * Immediately kill a server with a given username (does not save anything!)
  * @param string $name

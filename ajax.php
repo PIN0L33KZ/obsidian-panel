@@ -151,22 +151,30 @@ switch ($_POST['req']) {
 			exit(json_encode(['error' => 1, 'msg' => 'No log file found.']));
 		}
 
-		$start = isset($_REQUEST['start']) ? intval($_REQUEST['start']) : 0;
-		$end = isset($_REQUEST['end']) ? intval($_REQUEST['end']) : null;
+		$filesize = filesize($file);
+		$start = isset($_REQUEST['start']) ? max(0, intval($_REQUEST['start'])) : 0;
+		if ($start > $filesize) {
+			$start = max(0, $filesize - (30 * 1024));
+		}
 
-		$data = @file_get_contents($file, false, null, $start, $end);
+		$length = isset($_REQUEST['length']) ? intval($_REQUEST['length']) : ($filesize - $start);
+		$length = max(0, min($length, $filesize - $start));
+
+		$data = @file_get_contents($file, false, null, $start, $length);
 
 		if ($data === false) {
 			$data = file_get_contents($file, false, null, 0, 30 * 1024);
 			echo json_encode([
 				'error' => 2,
 				'msg' => 'Failed to read requested bytes from log file. Returned first 30 KB.',
+				'filesize' => strlen($data),
 				'start' => 0,
 				'end' => strlen($data),
 				'data' => $data,
 			]);
 		} else {
 			echo json_encode([
+				'filesize' => $filesize,
 				'start' => $start,
 				'end' => $start + strlen($data),
 				'data' => $data,

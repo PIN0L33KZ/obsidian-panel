@@ -51,25 +51,45 @@ $_SESSION['is_admin'] = $user['role'] === 'admin';
 		<script src="js/jquery-1.7.2.min.js"></script>
 		<script src="js/bootstrap.bundle.min.js"></script>
 		<script>
-			function refreshLog() {
-				updateStatus();
-				$.post('ajax.php', {
-					req: 'server_log'
-				}, function (data) {
-					if ($('#log').scrollTop() == $('#log')[0].scrollHeight) {
-						$('#log').html(data).scrollTop($('#log')[0].scrollHeight);
-					} else {
-						$('#log').html(data);
-					}
-					window.setTimeout(refreshLog, 1000);
-				});
+			let lastLogEnd = 0;
+			let actionInProgress = false;
+			let logTimer = null;
+			let serverIsRunning = false;
+
+			function setCommandState() {
+				$('#cmd').prop('disabled', actionInProgress || !serverIsRunning);
 			}
 
-			function refreshLogOnce() {
+			function refreshLog() {
 				$.post('ajax.php', {
-					req: 'server_log'
-				}, function (data) {
-					$('#log').html(data).scrollTop($('#log')[0].scrollHeight);
+					req: 'server_log_bytes',
+					start: lastLogEnd,
+					length: 24576
+				}, function (payload) {
+					const logEl = $('#log');
+					const node = logEl[0];
+					const atBottom = node.scrollTop + node.clientHeight >= node.scrollHeight - 10;
+
+					if (payload.error) {
+						lastLogEnd = payload.end || 0;
+						logEl.html(payload.data || '');
+						node.scrollTop = node.scrollHeight;
+					} else {
+						const resetStream = payload.start === 0 || payload.start < lastLogEnd;
+						if (resetStream) {
+							logEl.html(payload.data || '');
+							node.scrollTop = node.scrollHeight;
+						} else if (payload.data) {
+							logEl.append(payload.data);
+							if (atBottom) {
+								node.scrollTop = node.scrollHeight;
+							}
+						}
+						lastLogEnd = payload.end || lastLogEnd;
+					}
+				}, 'json').always(function () {
+					window.clearTimeout(logTimer);
+					logTimer = window.setTimeout(refreshLog, 1000);
 				});
 			}
 
@@ -77,28 +97,39 @@ $_SESSION['is_admin'] = $user['role'] === 'admin';
 				$.post('ajax.php', {
 					req: 'server_running'
 				}, function (data) {
-					if (data) {
-						$('#cmd').prop('disabled', false);
-					} else {
-						$('#cmd').prop('disabled', true);
+					serverIsRunning = !!data;
+					if (actionInProgress && serverIsRunning) {
+						actionInProgress = false;
 					}
+					setCommandState();
 				}, 'json');
 			}
 
 			$(document).ready(function () {
 				$('#frm-cmd').submit(function () {
+					const command = $('#cmd').val();
+					if (!command.trim() || actionInProgress || !serverIsRunning) {
+						return false;
+					}
+
+					actionInProgress = true;
+					setCommandState();
 					$.post('ajax.php', {
 						req: 'server_cmd',
-						cmd: $('#cmd').val()
+						cmd: command
 					}, function () {
-						$('#cmd').val('').prop('disabled', false).focus();
-						refreshLogOnce();
+						$('#cmd').val('').focus();
+						lastLogEnd = Math.max(0, lastLogEnd - 256);
+						refreshLog();
+					}).always(function () {
+						actionInProgress = false;
+						updateStatus();
 					});
-					$('#cmd').prop('disabled', true);
+
 					return false;
 				});
 
-			function adjustLogHeight() {
+				function adjustLogHeight() {
 					const footerHeight = $('footer').outerHeight(true) || 0;
 					const cmdHeight = $('#frm-cmd').outerHeight(true) || 0;
 					const topOffset = $('#log').offset().top || 0;
@@ -107,19 +138,12 @@ $_SESSION['is_admin'] = $user['role'] === 'admin';
 					$('#log').css('height', newHeight + 'px');
 				}
 
-				// Direkt nach dem Laden anpassen
 				adjustLogHeight();
-
-				// Auch bei Fenstergröße-Änderung
 				$(window).on('resize', adjustLogHeight);
 
-				// Starte Log-Updates
-				$.post('ajax.php', {
-					req: 'server_log'
-				}, function (data) {
-					$('#log').html(data).scrollTop($('#log')[0].scrollHeight);
-					window.setTimeout(refreshLog, 1000);
-				});
+				updateStatus();
+				window.setInterval(updateStatus, 3000);
+				refreshLog();
 			});
 		</script>
 	</head>

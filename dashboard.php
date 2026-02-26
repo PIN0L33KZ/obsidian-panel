@@ -100,7 +100,97 @@ if (!empty($_SESSION['user'])) {
 	</div>
 	<script>
 		document.addEventListener('DOMContentLoaded', function () {
-			function updateStatus(once = false) {
+			const startBtn = document.getElementById('btn-srv-start');
+			const stopBtn = document.getElementById('btn-srv-stop');
+			const restartBtn = document.getElementById('btn-srv-restart');
+			const cmdInput = document.getElementById('cmd');
+			const logArea = document.getElementById('log');
+			const statusLabel = document.getElementById('lbl-status');
+			const statusIcon = document.getElementById('status-icon');
+			let serverIsRunning = false;
+			let statusTimer = null;
+			let logTimer = null;
+			let lastLogEnd = 0;
+			let actionState = null;
+
+			function setControlStates() {
+				const busy = actionState !== null;
+				if (busy) {
+					startBtn.disabled = true;
+					stopBtn.disabled = true;
+					restartBtn.disabled = true;
+					cmdInput.disabled = true;
+					return;
+				}
+
+				startBtn.disabled = serverIsRunning;
+				stopBtn.disabled = !serverIsRunning;
+				restartBtn.disabled = !serverIsRunning;
+				cmdInput.disabled = !serverIsRunning;
+			}
+
+			function updateStatusBadge() {
+				if (actionState && actionState.type === 'start') {
+					statusLabel.innerText = 'Starting…';
+					statusLabel.className = 'badge bg-warning text-dark';
+					statusIcon.className = 'bi bi-arrow-repeat text-warning me-1';
+					return;
+				}
+				if (actionState && actionState.type === 'stop') {
+					statusLabel.innerText = 'Stopping…';
+					statusLabel.className = 'badge bg-warning text-dark';
+					statusIcon.className = 'bi bi-arrow-repeat text-warning me-1';
+					return;
+				}
+				if (actionState && actionState.type === 'restart') {
+					statusLabel.innerText = 'Restarting…';
+					statusLabel.className = 'badge bg-warning text-dark';
+					statusIcon.className = 'bi bi-arrow-repeat text-warning me-1';
+					return;
+				}
+
+				if (serverIsRunning) {
+					statusLabel.innerText = 'Running';
+					statusLabel.className = 'badge bg-success';
+					statusIcon.className = 'bi bi-play-fill text-success me-1';
+				} else {
+					statusLabel.innerText = 'Stopped';
+					statusLabel.className = 'badge bg-danger';
+					statusIcon.className = 'bi bi-stop-fill text-danger me-1';
+				}
+			}
+
+			function scheduleStatusPoll(delayMs = 5000) {
+				window.clearTimeout(statusTimer);
+				statusTimer = window.setTimeout(updateStatus, delayMs);
+			}
+
+			function resolveActionIfDone() {
+				if (!actionState) {
+					return;
+				}
+
+				if (actionState.type === 'start' && serverIsRunning) {
+					actionState = null;
+					return;
+				}
+
+				if (actionState.type === 'stop' && !serverIsRunning) {
+					actionState = null;
+					return;
+				}
+
+				if (actionState.type === 'restart') {
+					if (!serverIsRunning) {
+						actionState.seenStopped = true;
+					}
+					if (actionState.seenStopped && serverIsRunning) {
+						actionState = null;
+					}
+				}
+			}
+
+			function updateStatus() {
 				fetch('ajax.php', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -108,40 +198,18 @@ if (!empty($_SESSION['user'])) {
 				})
 				.then(res => res.json())
 				.then(data => {
-					const lbl = document.getElementById('lbl-status');
-					const icon = document.getElementById('status-icon');
-					const startBtn = document.getElementById('btn-srv-start');
-					const stopBtn = document.getElementById('btn-srv-stop');
-					const restartBtn = document.getElementById('btn-srv-restart');
-					const cmdInput = document.getElementById('cmd');
-
-					if (data) {
-						lbl.innerText = 'Running';
-						lbl.className = 'badge bg-success';
-						icon.className = 'bi bi-play-fill text-success me-1';
-						startBtn.disabled = true;
-						stopBtn.disabled = false;
-						restartBtn.disabled = false;
-						cmdInput.disabled = false;
-					} else {
-						lbl.innerText = 'Stopped';
-						lbl.className = 'badge bg-danger';
-						icon.className = 'bi bi-stop-fill text-danger me-1';
-						startBtn.disabled = false;
-						stopBtn.disabled = true;
-						restartBtn.disabled = true;
-						cmdInput.disabled = true;
-					}
-					if (!once) setTimeout(updateStatus, 5000);
+					serverIsRunning = !!data;
+					resolveActionIfDone();
+					updateStatusBadge();
+					setControlStates();
+					scheduleStatusPoll(actionState ? 1000 : 5000);
 				})
 				.catch(() => {
-					const lbl = document.getElementById('lbl-status');
-					const icon = document.getElementById('status-icon');
-					lbl.innerText = 'Unknown';
-					lbl.className = 'badge bg-secondary';
-					icon.className = 'bi bi-question-circle text-secondary me-1';
+					statusLabel.innerText = 'Unknown';
+					statusLabel.className = 'badge bg-secondary';
+					statusIcon.className = 'bi bi-question-circle text-secondary me-1';
+					scheduleStatusPoll(3000);
 				});
-
 			}
 
 			function updatePlayers() {
@@ -181,67 +249,106 @@ if (!empty($_SESSION['user'])) {
 				});
 			}
 
+			function appendLogData(chunk) {
+				if (!chunk) return;
+				const atBottom = logArea.scrollTop + logArea.clientHeight >= logArea.scrollHeight - 10;
+				if (!logArea.innerHTML) {
+					logArea.innerHTML = chunk;
+				} else {
+					logArea.insertAdjacentHTML('beforeend', chunk);
+				}
+				if (atBottom) {
+					logArea.scrollTop = logArea.scrollHeight;
+				}
+			}
+
 			function refreshLog() {
-				updateStatus();
 				fetch('ajax.php', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: 'req=server_log'
+					body: 'req=server_log_bytes&start=' + encodeURIComponent(lastLogEnd) + '&length=24576'
 				})
-				.then(res => res.text())
-				.then(log => {
-					const logArea = document.getElementById('log');
-					const isAtBottom = logArea.scrollTop + logArea.clientHeight >= logArea.scrollHeight - 10;
-					logArea.innerHTML = log;
-					if (isAtBottom) {
+				.then(res => res.json())
+				.then(payload => {
+					if (payload.error) {
+						lastLogEnd = payload.end || 0;
+						logArea.innerHTML = payload.data || '';
 						logArea.scrollTop = logArea.scrollHeight;
+					} else {
+						const resetStream = payload.start === 0 || payload.start < lastLogEnd;
+						if (resetStream) {
+							logArea.innerHTML = payload.data || '';
+							logArea.scrollTop = logArea.scrollHeight;
+						} else {
+							appendLogData(payload.data || '');
+						}
+						lastLogEnd = payload.end || lastLogEnd;
 					}
-					setTimeout(refreshLog, 3000);
+				})
+				.catch(() => {})
+				.finally(() => {
+					window.clearTimeout(logTimer);
+					logTimer = window.setTimeout(refreshLog, 1000);
 				});
 			}
 
 			function sendCommand(cmd) {
+				cmdInput.disabled = true;
 				fetch('ajax.php', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 					body: 'req=server_cmd&cmd=' + encodeURIComponent(cmd)
-				}).then(() => refreshLog());
+				}).finally(() => {
+					setControlStates();
+					refreshLog();
+				});
+			}
+
+			function runServerAction(reqType, actionType) {
+				if (actionState) {
+					return;
+				}
+
+				actionState = {
+					type: actionType,
+					seenStopped: false
+				};
+				updateStatusBadge();
+				setControlStates();
+				scheduleStatusPoll(500);
+
+				fetch('ajax.php', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: 'req=' + encodeURIComponent(reqType)
+				})
+				.catch(() => {
+					actionState = null;
+					updateStatus();
+				});
 			}
 
 			document.getElementById('frm-cmd').addEventListener('submit', function (e) {
 				e.preventDefault();
-				const cmdInput = document.getElementById('cmd');
+				if (actionState) {
+					return;
+				}
 				if (cmdInput.value.trim()) {
 					sendCommand(cmdInput.value);
 					cmdInput.value = '';
 				}
 			});
 
-			document.getElementById('btn-srv-start').addEventListener('click', function () {
-				this.disabled = true;
-				fetch('ajax.php', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: 'req=server_start'
-				}).then(() => updateStatus(true));
+			startBtn.addEventListener('click', function () {
+				runServerAction('server_start', 'start');
 			});
 
-			document.getElementById('btn-srv-stop').addEventListener('click', function () {
-				this.disabled = true;
-				fetch('ajax.php', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: 'req=server_stop'
-				}).then(() => updateStatus(true));
+			stopBtn.addEventListener('click', function () {
+				runServerAction('server_stop', 'stop');
 			});
 
-			document.getElementById('btn-srv-restart').addEventListener('click', function () {
-				this.disabled = true;
-				fetch('ajax.php', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: 'req=server_restart'
-				}).then(() => updateStatus(true));
+			restartBtn.addEventListener('click', function () {
+				runServerAction('server_restart', 'restart');
 			});
 
 			document.getElementById('server-jar').addEventListener('change', function () {
@@ -253,7 +360,7 @@ if (!empty($_SESSION['user'])) {
 				});
 			});
 
-			// Initialisierung
+			setControlStates();
 			updateStatus();
 			updatePlayers();
 			refreshLog();

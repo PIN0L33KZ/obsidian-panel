@@ -100,7 +100,38 @@ if (!empty($_SESSION['user'])) {
 	</div>
 	<script>
 		document.addEventListener('DOMContentLoaded', function () {
-			function updateStatus(once = false) {
+			const startBtn = document.getElementById('btn-srv-start');
+			const stopBtn = document.getElementById('btn-srv-stop');
+			const restartBtn = document.getElementById('btn-srv-restart');
+			const cmdInput = document.getElementById('cmd');
+			const logArea = document.getElementById('log');
+			let actionInProgress = false;
+			let serverIsRunning = false;
+			let statusTimer = null;
+			let logTimer = null;
+			let lastLogEnd = 0;
+
+			function setControlStates() {
+				if (actionInProgress) {
+					startBtn.disabled = true;
+					stopBtn.disabled = true;
+					restartBtn.disabled = true;
+					cmdInput.disabled = true;
+					return;
+				}
+
+				startBtn.disabled = serverIsRunning;
+				stopBtn.disabled = !serverIsRunning;
+				restartBtn.disabled = !serverIsRunning;
+				cmdInput.disabled = !serverIsRunning;
+			}
+
+			function scheduleStatusPoll(delayMs = 5000) {
+				window.clearTimeout(statusTimer);
+				statusTimer = window.setTimeout(updateStatus, delayMs);
+			}
+
+			function updateStatus() {
 				fetch('ajax.php', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -110,29 +141,22 @@ if (!empty($_SESSION['user'])) {
 				.then(data => {
 					const lbl = document.getElementById('lbl-status');
 					const icon = document.getElementById('status-icon');
-					const startBtn = document.getElementById('btn-srv-start');
-					const stopBtn = document.getElementById('btn-srv-stop');
-					const restartBtn = document.getElementById('btn-srv-restart');
-					const cmdInput = document.getElementById('cmd');
+					serverIsRunning = !!data;
 
-					if (data) {
-						lbl.innerText = 'Running';
+					if (serverIsRunning) {
+						lbl.innerText = actionInProgress ? 'Starting…' : 'Running';
 						lbl.className = 'badge bg-success';
 						icon.className = 'bi bi-play-fill text-success me-1';
-						startBtn.disabled = true;
-						stopBtn.disabled = false;
-						restartBtn.disabled = false;
-						cmdInput.disabled = false;
+						if (actionInProgress) {
+							actionInProgress = false;
+						}
 					} else {
-						lbl.innerText = 'Stopped';
+						lbl.innerText = actionInProgress ? 'Stopping…' : 'Stopped';
 						lbl.className = 'badge bg-danger';
 						icon.className = 'bi bi-stop-fill text-danger me-1';
-						startBtn.disabled = false;
-						stopBtn.disabled = true;
-						restartBtn.disabled = true;
-						cmdInput.disabled = true;
 					}
-					if (!once) setTimeout(updateStatus, 5000);
+					setControlStates();
+					scheduleStatusPoll(actionInProgress ? 1000 : 5000);
 				})
 				.catch(() => {
 					const lbl = document.getElementById('lbl-status');
@@ -140,8 +164,8 @@ if (!empty($_SESSION['user'])) {
 					lbl.innerText = 'Unknown';
 					lbl.className = 'badge bg-secondary';
 					icon.className = 'bi bi-question-circle text-secondary me-1';
+					scheduleStatusPoll(3000);
 				});
-
 			}
 
 			function updatePlayers() {
@@ -181,67 +205,123 @@ if (!empty($_SESSION['user'])) {
 				});
 			}
 
+			function appendLogData(chunk) {
+				if (!chunk) return;
+				const atBottom = logArea.scrollTop + logArea.clientHeight >= logArea.scrollHeight - 10;
+				if (!logArea.innerHTML) {
+					logArea.innerHTML = chunk;
+				} else {
+					logArea.insertAdjacentHTML('beforeend', chunk);
+				}
+				if (atBottom) {
+					logArea.scrollTop = logArea.scrollHeight;
+				}
+			}
+
 			function refreshLog() {
-				updateStatus();
 				fetch('ajax.php', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: 'req=server_log'
+					body: 'req=server_log_bytes&start=' + encodeURIComponent(lastLogEnd) + '&length=24576'
 				})
-				.then(res => res.text())
-				.then(log => {
-					const logArea = document.getElementById('log');
-					const isAtBottom = logArea.scrollTop + logArea.clientHeight >= logArea.scrollHeight - 10;
-					logArea.innerHTML = log;
-					if (isAtBottom) {
+				.then(res => res.json())
+				.then(payload => {
+					if (payload.error) {
+						lastLogEnd = payload.end || 0;
+						logArea.innerHTML = payload.data || '';
 						logArea.scrollTop = logArea.scrollHeight;
+					} else {
+						const resetStream = payload.start === 0 || payload.start < lastLogEnd;
+						if (resetStream) {
+							logArea.innerHTML = payload.data || '';
+							logArea.scrollTop = logArea.scrollHeight;
+						} else {
+							appendLogData(payload.data || '');
+						}
+						lastLogEnd = payload.end || lastLogEnd;
 					}
-					setTimeout(refreshLog, 3000);
+				})
+				.catch(() => {})
+				.finally(() => {
+					window.clearTimeout(logTimer);
+					logTimer = window.setTimeout(refreshLog, 1000);
 				});
 			}
 
 			function sendCommand(cmd) {
+				cmdInput.disabled = true;
 				fetch('ajax.php', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 					body: 'req=server_cmd&cmd=' + encodeURIComponent(cmd)
-				}).then(() => refreshLog());
+				}).finally(() => {
+					setControlStates();
+					refreshLog();
+				});
+			}
+
+			function runServerAction(reqType, expectedRunningState) {
+				actionInProgress = true;
+				setControlStates();
+				updateStatus();
+				fetch('ajax.php', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: 'req=' + encodeURIComponent(reqType)
+				})
+				.catch(() => {
+					actionInProgress = false;
+					setControlStates();
+				})
+				.finally(() => {
+					const waitForTargetState = () => {
+						fetch('ajax.php', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+							body: 'req=server_running'
+						})
+						.then(res => res.json())
+						.then(isRunning => {
+							serverIsRunning = !!isRunning;
+							if (serverIsRunning === expectedRunningState) {
+								actionInProgress = false;
+							}
+							setControlStates();
+							updateStatus();
+							if (actionInProgress) {
+								window.setTimeout(waitForTargetState, 1000);
+							}
+						})
+						.catch(() => {
+							window.setTimeout(waitForTargetState, 1500);
+						});
+					};
+
+					window.setTimeout(waitForTargetState, 500);
+				});
 			}
 
 			document.getElementById('frm-cmd').addEventListener('submit', function (e) {
 				e.preventDefault();
-				const cmdInput = document.getElementById('cmd');
+				if (actionInProgress) {
+					return;
+				}
 				if (cmdInput.value.trim()) {
 					sendCommand(cmdInput.value);
 					cmdInput.value = '';
 				}
 			});
 
-			document.getElementById('btn-srv-start').addEventListener('click', function () {
-				this.disabled = true;
-				fetch('ajax.php', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: 'req=server_start'
-				}).then(() => updateStatus(true));
+			startBtn.addEventListener('click', function () {
+				runServerAction('server_start', true);
 			});
 
-			document.getElementById('btn-srv-stop').addEventListener('click', function () {
-				this.disabled = true;
-				fetch('ajax.php', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: 'req=server_stop'
-				}).then(() => updateStatus(true));
+			stopBtn.addEventListener('click', function () {
+				runServerAction('server_stop', false);
 			});
 
-			document.getElementById('btn-srv-restart').addEventListener('click', function () {
-				this.disabled = true;
-				fetch('ajax.php', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-					body: 'req=server_restart'
-				}).then(() => updateStatus(true));
+			restartBtn.addEventListener('click', function () {
+				runServerAction('server_restart', true);
 			});
 
 			document.getElementById('server-jar').addEventListener('change', function () {
@@ -253,7 +333,7 @@ if (!empty($_SESSION['user'])) {
 				});
 			});
 
-			// Initialisierung
+			setControlStates();
 			updateStatus();
 			updatePlayers();
 			refreshLog();

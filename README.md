@@ -19,7 +19,7 @@
 
 ## 📔 - Version Information
 
-Current version: **0.1.0.2** Release date: **08/04/2025**
+Current version: **0.1.3.0** Release date: **08/04/2025**
 
 Latest Updates:
 
